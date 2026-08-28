@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>ماجراجویی تقارن | ۳۰ سؤال</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Tahoma,Arial,sans-serif;background:linear-gradient(135deg,#e4f8ff,#fff5dc);color:#26324a}
+#app{max-width:760px;margin:auto;padding:12px}
+.top,.card{background:#fff;border-radius:26px;box-shadow:0 7px 24px #00000012}
+.top{padding:14px 18px;position:sticky;top:6px;z-index:5}
+.id{text-align:center;color:#7c3aed;font-weight:800;font-size:20px}
+.title{text-align:center;font-size:25px;font-weight:800;margin:5px}
+.stats{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-weight:700}
+.bar{height:12px;background:#e9e9e9;border-radius:20px;overflow:hidden;margin-top:10px}
+.fill{height:100%;width:0;background:linear-gradient(90deg,#55c8ff,#7c3aed);transition:.3s}
+.card{padding:20px;margin-top:14px;text-align:center}
+.q{font-size:21px;font-weight:800;line-height:1.9;margin-bottom:12px}
+.shapeBox{display:flex;justify-content:center;align-items:center;min-height:230px}
+svg{max-width:100%;height:auto}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.choice,.countBtn,.next{border:3px solid #dce4f5;border-radius:19px;background:#fff;padding:14px;font:inherit;cursor:pointer}
+.choice{min-height:72px;font-size:18px}
+.choice:active,.countBtn:active,.next:active{transform:scale(.98)}
+.ok{border-color:#25a65a!important;background:#eafff0!important}
+.bad{border-color:#e44b4b!important;background:#fff0f0!important}
+.feedback{min-height:34px;margin:14px 0;font-size:19px;font-weight:800}
+.next{background:#704bea;color:#fff;border:0;padding:13px 28px}
+.hidden{display:none!important}
+.countBtns{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.countBtn{font-size:20px}
+.drawArea{position:relative;width:100%;max-width:620px;margin:auto}
+#drawCanvas{display:block;width:100%;height:330px;background:#f8fbff;border:2px dashed #b9c8eb;border-radius:22px;touch-action:none}
+.hint{color:#68738b;font-size:15px;line-height:1.8;margin:8px}
+.actionRow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.smallBtn{border:0;border-radius:15px;padding:11px 18px;font:inherit;cursor:pointer;background:#e9e5ff;color:#5d35cf}
+.choice svg{width:110px;height:100px}
+.note{background:#f2efff;border-radius:18px;padding:12px;color:#6540bd;margin:10px 0}
+@media(max-width:500px){
+ .title{font-size:22px}.q{font-size:18px}.card{padding:15px}
+ .choices{grid-template-columns:1fr}.countBtns{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+<div id="app">
+ <div class="top">
+  <div class="id">@ghab_roya</div>
+  <div class="title">⚡ ماجراجویی تقارن ⚡</div>
+  <div class="stats">
+   <span id="count">سؤال ۱ از ۳۰</span>
+   <span>❤️ <b id="lives">۳</b></span>
+   <span>⭐ <b id="score">۰</b></span>
+   <span>🏆 <b id="record">۰</b></span>
+  </div>
+  <div class="bar"><div class="fill" id="fill"></div></div>
+ </div>
+ <main id="game"></main>
+</div>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s);
+const fa=n=>String(n).replace(/\d/g,d=>"۰۱۲۳۴۵۶۷۸۹"[d]);
+
+/* اطلاعات هندسی دقیق */
+const S={
+ circle:{name:"دایره",lines:"inf",color:"#ffd166"},
+ square:{name:"مربع",lines:4,color:"#62d5c9"},
+ rectangle:{name:"مستطیل",lines:2,color:"#76a5ff"},
+ rhombus:{name:"لوزی",lines:2,color:"#a78bfa"},
+ parallelogram:{name:"متوازی‌الاضلاع",lines:0,color:"#f38ba8"},
+ eq:{name:"مثلث متساوی‌الاضلاع",lines:3,color:"#ff8fab"},
+ iso:{name:"مثلث متساوی‌الساقین",lines:1,color:"#55c8ff"},
+ scalene:{name:"مثلث مختلف‌الاضلاع",lines:0,color:"#f6a55b"},
+ kite:{name:"بادبادک",lines:1,color:"#9b87d6"},
+ hex:{name:"شش‌ضلعی منتظم",lines:6,color:"#73c6a8"},
+ heart:{name:"قلب",lines:1,color:"#ff7096"},
+ semicircle:{name:"نیم‌دایره",lines:1,color:"#69b7ff"}
+};
+
+function shapeSVG(k,lines=[]){
+ const c=S[k].color; let body="";
+ if(k==="circle") body=`<circle cx="120" cy="105" r="68" fill="${c}" stroke="#344054" stroke-width="5"/>`;
+ if(k==="square") body=`<rect x="52" y="37" width="136" height="136" fill="${c}" stroke="#344054" stroke-width="5"/>`;
+ if(k==="rectangle") body=`<rect x="32" y="65" width="176" height="80" fill="${c}" stroke="#344054" stroke-width="5"/>`;
+ if(k==="rhombus") body=`<polygon points="120,25 210,105 120,185 30,105" fill="${c}" stroke="#344054" stroke-width="5"/>`;
+ if(k==="parallelogram") body=`<polygon points="55,45 205,45 175,170 25,170" fill="${c}" stroke="#344054" stroke-width="5"/>`;
+ if(k==="eq") body=`<polygon points="120,28 198,165 42,165" fill="${c}" stroke="#344054" stroke-width="5"/>`;
+ if(k==="iso") body=`<polygon points="120,28 190,165 50,165" fill="${c}" stroke="#344054" stroke-width="5"/>`;
+ if(k==="scalene") body=`<polygon points="45,165 82,35 205,165" fill="${c}" stroke="#344054" stroke-width="5"/>`;
+ if(k==="kite") body=`<polygon points="120,25 188,95 120,185 68,95" fill="${c}" stroke="#344054" stroke-width="5"/>`;
+ if(k==="hex"){
+   let p=[]; for(let n=0;n<6;n++){let a=Math.PI/6+n*Math.PI/3;p.push(`${120+72*Math.cos(a)},${105+72*Math.sin(a)}`)}
+   body=`<polygon points="${p.join(" ")}" fill="${c}" stroke="#344054" stroke-width="5"/>`;
+ }
+ if(k==="heart") body=`<path d="M120 182 C102 160 45 128 45 80 C45 40 90 28 120 63 C150 28 195 40 195 80 C195 128 138 160 120 182Z" fill="${c}" stroke="#344054" stroke-width="5"/>`;
+ if(k==="semicircle") body=`<path d="M45 130 A75 75 0 0 1 195 130 L45 130 Z" fill="${c}" stroke="#344054" stroke-width="5"/>`;
+
+ let l=lines.map(a=>`<line x1="${a[0]}" y1="${a[1]}" x2="${a[2]}" y2="${a[3]}" stroke="#7c3aed" stroke-width="6" stroke-dasharray="11 9" stroke-linecap="round"/>`).join("");
+ return `<svg viewBox="0 0 240 210" width="290" height="250">${body}${l}</svg>`;
+}
+
+/* هر سؤال پاسخ مستقل و از قبل مشخص دارد؛ هیچ پاسخ تصادفی تولید نمی‌شود. */
+const Q=[
+ {t:"count",s:"square"},{t:"count",s:"rhombus"},{t:"count",s:"parallelogram"},
+ {t:"count",s:"eq"},{t:"count",s:"iso"},{t:"count",s:"scalene"},
+ {t:"count",s:"rectangle"},{t:"count",s:"kite"},{t:"count",s:"hex"},{t:"count",s:"circle"},
+
+ {t:"draw",s:"square",a:["v","h","d1","d2"]},
+ {t:"draw",s:"rectangle",a:["v","h"]},
+ {t:"draw",s:"rhombus",a:["d1","d2"]},
+ {t:"draw",s:"eq",a:["v","d1","d2"]},
+ {t:"draw",s:"iso",a:["v"]},
+ {t:"draw",s:"parallelogram",a:[]},
+ {t:"draw",s:"kite",a:["v"]},
+ {t:"draw",s:"hex",a:["v","h","d1","d2"]},
+
+ {t:"yes",s:"parallelogram",a:"v",ans:false},
+ {t:"yes",s:"rectangle",a:"v",ans:true},
+ {t:"yes",s:"rhombus",a:"d1",ans:true},
+ {t:"yes",s:"eq",a:"v",ans:true},
+ {t:"yes",s:"iso",a:"h",ans:false},
+ {t:"yes",s:"scalene",a:"d1",ans:false},
+
+ {t:"which",mode:"zero",ans:"parallelogram",opts:["parallelogram","square","eq","kite"]},
+ {t:"which",mode:"zero",ans:"scalene",opts:["scalene","rectangle","rhombus","eq"]},
+ {t:"which",mode:"two",ans:"rectangle",opts:["rectangle","square","eq","kite"]},
+ {t:"which",mode:"two",ans:"rhombus",opts:["rhombus","square","eq","kite"]},
+ {t:"which",mode:"three",ans:"eq",opts:["eq","square","rectangle","kite"]},
+ {t:"which",mode:"one",ans:"kite",opts:["kite","square","rectangle","eq"]}
+];
+
+let idx=0,score=0,lives=3,correct=0,record=0,answered=false;
+
+/* کنترل نهایی: هر سؤال چندگزینه‌ایِ شمارشی/تشخیصی باید دقیقاً یک پاسخ صحیح داشته باشد. */
+Q.forEach((q,n)=>{
+ if(q.t==="count" && !S[q.s]) throw new Error("شکل نامعتبر در سؤال "+(n+1));
+ if(q.t==="which"){
+   const target={zero:0,one:1,two:2,three:3}[q.mode];
+   if(!q.opts || q.opts.length!==4 || q.opts.filter(k=>S[k].lines===target).length!==1)
+     throw new Error("سؤال "+(n+1)+" بیش از یک/بدون پاسخ صحیح است");
+ }
+});
+try{record=Number(localStorage.getItem("symRecord30")||0)||0}catch(e){}
+
+function top(){
+ $("#count").textContent=`سؤال ${fa(idx+1)} از ۳۰`;
+ $("#lives").textContent=fa(lives);
+ $("#score").textContent=fa(score);
+ $("#record").textContent=fa(record);
+ $("#fill").style.width=((idx)/30*100)+"%";
+}
+function card(q,work){
+ $("#game").innerHTML=`<section class="card"><div class="q">${q}</div>${work}<div id="fb" class="feedback"></div><button id="next" class="next hidden">سؤال بعدی ➜</button></section>`;
+}
+function finish(){
+ $("#fill").style.width="100%";
+ let pct=Math.round(correct/30*100);
+ let title=pct>=90?"🏆 استاد تقارن":pct>=70?"🌟 قهرمان تقارن":pct>=50?"🔥 ماجراجوی تقارن":"💪 یک دور دیگر تمرین کن!";
+ $("#game").innerHTML=`<section class="card"><h1>🎊 بازی تمام شد!</h1>
+ <p>✅ پاسخ درست: <b>${fa(correct)} از ۳۰</b></p><p>⭐ امتیاز: <b>${fa(score)}</b></p>
+ <p>🏆 رکورد: <b>${fa(record)}</b></p><h2>${title}</h2>
+ <button class="next" id="restart">🔄 شروع دوباره</button></section>`;
+ $("#restart").onclick=()=>{idx=0;score=0;lives=3;correct=0;render()};
+}
+function judge(ok,el,points=10){
+ if(answered)return;
+ if(ok){
+   answered=true; correct++; score+=points;
+   if(score>record){record=score;try{localStorage.setItem("symRecord30",record)}catch(e){}}
+   el&&el.classList.add("ok");
+   $("#fb").textContent="🎉 آفرین! پاسخ درست است.";
+   $("#next").classList.remove("hidden");
+   $("#next").onclick=()=>{idx++; if(idx>=Q.length)finish(); else render()};
+ }else{
+   lives--;
+   $("#lives").textContent=fa(lives);
+   el&&el.classList.add("bad");
+   $("#fb").textContent=lives>0?"❌ اشتباه است؛ همین سؤال را دوباره امتحان کن.":"❌ سه جانت تمام شد؛ اما بازی از اول نمی‌رود. سؤال را دوباره می‌بینی.";
+   setTimeout(()=>{if(el)el.classList.remove("bad");},500);
+   /* مهم: پاسخ غلط هرگز idx را صفر نمی‌کند و سؤال عوض نمی‌شود. */
+ }
+}
+
+function countQ(q){
+ let opts=[0,1,2,3,4,6];
+ if(q.s==="circle") opts=[0,1,2,3,6,"∞"];
+ let work=`<div class="shapeBox">${shapeSVG(q.s)}</div><div class="note">${S[q.s].name}</div><div class="countBtns">`;
+ opts.forEach(n=>{let val=n==="∞"?"inf":n;work+=`<button class="countBtn" data-v="${val}">${n==="∞"?"بی‌شمار":fa(n)}</button>`});
+ work+="</div>";
+ card(`این شکل چند خط تقارن دارد؟`,work);
+ document.querySelectorAll(".countBtn").forEach(b=>b.onclick=()=>judge(b.dataset.v==String(S[q.s].lines),b));
+}
+
+function expectedSegments(s){
+ const m={
+  square:[[120,25,120,185],[30,105,210,105],[38,23,202,187],[38,187,202,23]],
+  rectangle:[[120,25,120,185],[25,105,215,105]],
+  rhombus:[[120,18,120,192],[25,105,215,105]],
+  eq:[[120,20,120,180],[45,170,195,80],[195,170,45,80]],
+  iso:[[120,20,120,180]],
+  kite:[[120,20,120,190]],
+  hex:[[120,20,120,190],[25,105,215,105],[45,35,195,175],[45,175,195,35],[55,170,185,40],[55,40,185,170]]
+ };
+ return m[s]||[];
+}
+function drawQ(q){
+ let work=`<div class="drawArea"><canvas id="drawCanvas"></canvas>
+ <div class="hint">شکل داخل کادر است. با انگشت <b>یک خط صافِ تقارن</b> روی شکل بکش؛ سپس «بررسی» را بزن.</div>
+ <div class="actionRow"><button class="smallBtn" id="clear">پاک کردن</button><button class="next" id="check">بررسی خط ✓</button></div></div>`;
+ card(`خط تقارن «${S[q.s].name}» را خودت رسم کن.`,work);
+ const c=$("#drawCanvas"),ctx=c.getContext("2d");
+ let dpr=window.devicePixelRatio||1, drawing=false, pts=[];
+ function resize(){
+   let r=c.getBoundingClientRect(); c.width=Math.round(r.width*dpr);c.height=Math.round(r.height*dpr);
+   ctx.setTransform(dpr,0,0,dpr,0,0); drawBase();
+ }
+ function drawBase(){
+   let r=c.getBoundingClientRect();ctx.clearRect(0,0,r.width,r.height);
+   let scale=Math.min(r.width/240,(r.height-10)/210),ox=(r.width-240*scale)/2,oy=(r.height-210*scale)/2;
+   ctx.save();ctx.translate(ox,oy);ctx.scale(scale,scale);
+   const c0=S[q.s].color;ctx.lineWidth=5;ctx.strokeStyle="#344054";ctx.fillStyle=c0;
+   let k=q.s;
+   if(k==="square"){ctx.fillRect(52,37,136,136);ctx.strokeRect(52,37,136,136)}
+   if(k==="rectangle"){ctx.fillRect(32,65,176,80);ctx.strokeRect(32,65,176,80)}
+   if(k==="rhombus"){poly([[120,25],[210,105],[120,185],[30,105]])}
+   if(k==="eq"){poly([[120,28],[198,165],[42,165]])}
+   if(k==="iso"){poly([[120,28],[190,165],[50,165]])}
+   if(k==="parallelogram"){poly([[55,45],[205,45],[175,170],[25,170]])}
+   if(k==="kite"){poly([[120,25],[188,95],[120,185],[68,95]])}
+   if(k==="hex"){let p=[];for(let n=0;n<6;n++){let a=Math.PI/6+n*Math.PI/3;p.push([120+72*Math.cos(a),105+72*Math.sin(a)])}poly(p)}
+   ctx.restore();
+ }
+ function poly(p){ctx.beginPath();ctx.moveTo(p[0][0],p[0][1]);p.slice(1).forEach(x=>ctx.lineTo(x[0],x[1]));ctx.closePath();ctx.fill();ctx.stroke()}
+ function pos(e){let r=c.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+ resize();window.addEventListener("resize",resize);
+ c.onpointerdown=e=>{drawing=true;pts=[pos(e)];c.setPointerCapture(e.pointerId)};
+ c.onpointermove=e=>{if(!drawing)return;pts.push(pos(e));let r=c.getBoundingClientRect();drawBase();ctx.strokeStyle="#7c3aed";ctx.lineWidth=6;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);pts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));ctx.stroke()};
+ c.onpointerup=()=>drawing=false;c.onpointercancel=()=>drawing=false;
+ $("#clear").onclick=()=>{pts=[];drawBase()};
+ $("#check").onclick=()=>{
+   if(q.a.length===0){judge(pts.length===0,$("#check"),15);return}
+   if(pts.length<2){judge(false,$("#check"),15);return}
+   let a=pts[0],b=pts[pts.length-1],dx=b.x-a.x,dy=b.y-a.y;
+   let deg=(Math.atan2(dy,dx)*180/Math.PI+180)%180;
+   /* خط تقارن را بر اساس خودِ شکل می‌سنجیم؛ هر شکل محورهای مخصوص خودش را دارد. */
+   const axes={
+     square:[0,45,90,135],
+     rectangle:[0,90],
+     rhombus:[0,90],
+     eq:[30,90,150],
+     iso:[90],
+     parallelogram:[],
+     kite:[90],
+     hex:[0,30,60,90,120,150]
+   };
+   const allowed=axes[q.s]||[];
+   const angleOK=allowed.some(x=>{let d=Math.abs(deg-x);return Math.min(d,180-d)<=10});
+   let r=c.getBoundingClientRect(),mx=r.width/2,my=r.height/2;
+   let midx=(a.x+b.x)/2,midy=(a.y+b.y)/2;
+   let centerOK=Math.hypot(midx-mx,midy-my)<75;
+   let ok=angleOK&&centerOK;
+   judge(ok,$("#check"),15);
+ };
+}
+
+function lineFor(q){
+ const m={
+  "parallelogram:v":[[120,20,120,190]],
+  "rectangle:v":[[120,25,120,185]],
+  "rhombus:d1":[[35,105,205,105]],
+  "eq:v":[[120,20,120,185]],
+  "iso:h":[[25,105,215,105]],
+  "scalene:d1":[[30,180,210,30]]
+ };
+ return m[q.s+":"+q.a]||[[120,20,120,190]];
+}
+function yesQ(q){
+ let l=lineFor(q),work=`<div class="shapeBox">${shapeSVG(q.s,l)}</div>
+ <div class="note">خط بنفشِ نقطه‌چین را دقیق نگاه کن.</div>
+ <div class="choices"><button class="choice" id="yes">✅ بله، خط تقارن است</button><button class="choice" id="no">❌ خیر، خط تقارن نیست</button></div>`;
+ card(`آیا خط بنفشِ نقطه‌چین، خط تقارن ${S[q.s].name} است؟`,work);
+ $("#yes").onclick=()=>judge(q.ans,$("#yes"));
+ $("#no").onclick=()=>judge(!q.ans,$("#no"));
+}
+function whichQ(q){
+ /* گزینه‌ها برای هر سؤال دستی تعیین شده‌اند تا دقیقاً یک پاسخ صحیح وجود داشته باشد. */
+ const opts=q.opts;
+ const target={zero:0,one:1,two:2,three:3}[q.mode];
+ const valid=opts.filter(k=>S[k].lines===target);
+ if(valid.length!==1 || !opts.includes(q.ans) || S[q.ans].lines!==target){
+   throw new Error("پیکربندی سؤال نامعتبر است");
+ }
+ let work='<div class="choices">';
+ opts.forEach(k=>work+=`<button class="choice" data-k="${k}">${shapeSVG(k)}<br><b>${S[k].name}</b><br><small>${S[k].lines==="inf"?"بی‌شمار":fa(S[k].lines)} خط تقارن</small></button>`);
+ work+='</div>';
+ let text={zero:"کدام شکل خط تقارن ندارد؟",one:"کدام شکل فقط یک خط تقارن دارد؟",two:"کدام شکل ۲ خط تقارن دارد؟",three:"کدام شکل ۳ خط تقارن دارد؟"}[q.mode];
+ card(text,work);
+ document.querySelectorAll(".choice").forEach(b=>b.onclick=()=>judge(b.dataset.k===q.ans,b));
+}
+function render(){
+ answered=false;top();let q=Q[idx];
+ if(q.t==="count")countQ(q);
+ else if(q.t==="draw")drawQ(q);
+ else if(q.t==="yes")yesQ(q);
+ else whichQ(q);
+}
+render();
+})();
+</script>
+</body>
+</html>
